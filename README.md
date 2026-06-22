@@ -3,6 +3,10 @@
 A single-file, interactive organizer for a Blu-ray movie collection. Open
 `index.html` in any browser — no install, no server, works offline.
 
+**Live site:** https://fsssolutions.github.io/bluray/
+(served from the `gh-pages` branch via GitHub Pages — requires the repo to be
+public, or a paid plan if private)
+
 ## What it shows
 
 For each film you get the **IMDb-style basics** (year, director, cast, genre,
