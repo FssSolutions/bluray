@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blu-ray Collection Organizer</title>
+<style>
+  :root{
+    --bg:#0d1016; --panel:#161b24; --panel-2:#1d2430; --line:#2a3340;
+    --txt:#e7ecf3; --mut:#8a98ab; --acc:#4ea1ff; --acc-2:#2f6fd0;
+    --film:#e0a13c; --digital:#52c1c9; --imax:#c95273; --anim:#8a6cf0;
+    --good:#3ecf8e; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--acc)}
+  header{
+    position:sticky; top:0; z-index:30;
+    background:linear-gradient(180deg,rgba(13,16,22,.98),rgba(13,16,22,.92));
+    backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+    padding:14px 20px;
+  }
+  .bar{display:flex; gap:12px; align-items:center; flex-wrap:wrap; max-width:1280px; margin:0 auto}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; margin-right:6px}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--acc);box-shadow:0 0 12px var(--acc)}
+  .grow{flex:1}
+  input,select,button,textarea{font-family:inherit; font-size:14px}
+  .field{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--txt);
+    border-radius:9px; padding:9px 12px; outline:none;
+  }
+  .field:focus{border-color:var(--acc)}
+  #search{min-width:200px}
+  .btn{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--txt);
+    border-radius:9px; padding:9px 14px; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--acc); color:#fff}
+  .btn.primary{background:var(--acc-2); border-color:var(--acc-2); color:#fff; font-weight:600}
+  .btn.primary:hover{background:var(--acc)}
+  .btn.ghost{background:transparent}
+  .addrow{display:flex; gap:8px; max-width:1280px; margin:10px auto 0}
+  #addTitle{flex:1; min-width:160px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap; max-width:1280px; margin:12px auto 0}
+  .chip{
+    background:var(--panel); border:1px solid var(--line); color:var(--mut);
+    padding:6px 13px; border-radius:999px; cursor:pointer; font-size:13px;
+  }
+  .chip.active{color:#fff; border-color:var(--acc); background:var(--panel-2)}
+  .chip .c{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  main{max-width:1280px; margin:0 auto; padding:22px 20px 80px}
+  .meta{color:var(--mut); font-size:13px; margin:4px 0 16px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:18px}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s;
+    display:flex; flex-direction:column;
+  }
+  .card:hover{transform:translateY(-3px); border-color:var(--acc)}
+  .poster{aspect-ratio:2/3; background:var(--panel-2); position:relative; overflow:hidden}
+  .poster img{width:100%; height:100%; object-fit:cover; display:block}
+  .poster .ph{
+    width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:14px;color:var(--mut);font-weight:600;font-size:15px;
+    background:radial-gradient(120% 80% at 50% 0%,#222c3a,#141a23);
+  }
+  .badge{
+    position:absolute; top:8px; left:8px; font-size:11px; font-weight:700;
+    padding:3px 8px; border-radius:6px; color:#0d1016; letter-spacing:.3px;
+  }
+  .card .body{padding:11px 12px 13px}
+  .card .t{font-weight:600; line-height:1.25; font-size:14px}
+  .card .sub{color:var(--mut); font-size:12.5px; margin-top:3px}
+  .card .rt{margin-top:7px; font-size:12px; color:var(--warn)}
+  .empty{text-align:center; color:var(--mut); padding:60px 20px}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(5,7,11,.72); backdrop-filter:blur(3px); z-index:50; display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto}
+  .overlay.open{display:flex}
+  .modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    width:100%; max-width:860px; overflow:hidden;
+  }
+  .mhead{display:flex; gap:20px; padding:22px; background:linear-gradient(180deg,var(--panel-2),var(--panel))}
+  .mhead .mp{width:150px; flex:none; border-radius:10px; overflow:hidden; aspect-ratio:2/3; background:#10151d}
+  .mhead .mp img{width:100%;height:100%;object-fit:cover}
+  .mhead .mp .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--mut);font-weight:600;text-align:center;padding:10px;font-size:13px}
+  .mtitle{font-size:24px; font-weight:700; line-height:1.2}
+  .mline{color:var(--mut); margin-top:6px; font-size:14px}
+  .pills{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px}
+  .pill{font-size:12px; padding:4px 10px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--txt)}
+  .pill.rate{color:var(--warn); border-color:#4a3d23}
+  .plot{padding:0 22px 6px; color:#cdd6e2}
+  .section{padding:18px 22px}
+  .section h3{margin:0 0 12px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--acc)}
+  .specs{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media(max-width:620px){.specs{grid-template-columns:1fr} .mhead{flex-direction:column} .mhead .mp{width:120px}}
+  .spec{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
+  .spec .k{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--mut); margin-bottom:5px}
+  .spec .v{font-size:14px; line-height:1.4}
+  .spec .v.unknown{color:var(--warn); font-style:italic}
+  .info{display:grid; grid-template-columns:1fr 1fr; gap:10px 22px}
+  .info .row{display:flex; gap:10px; border-bottom:1px solid var(--line); padding:7px 0}
+  .info .row .k{color:var(--mut); width:90px; flex:none; font-size:13px}
+  .mfoot{display:flex; gap:10px; padding:16px 22px 22px; border-top:1px solid var(--line); flex-wrap:wrap}
+  .mfoot .grow{flex:1}
+  .x{position:absolute; top:14px; right:16px; cursor:pointer; color:var(--mut); font-size:26px; line-height:1; z-index:2}
+  .x:hover{color:#fff}
+  .modal-wrap{position:relative}
+
+  /* edit form */
+  .editrow{display:grid; grid-template-columns:130px 1fr; gap:10px; align-items:center; margin-bottom:10px}
+  .editrow label{color:var(--mut); font-size:13px}
+  .editrow input, .editrow select, .editrow textarea{width:100%}
+  textarea.field{resize:vertical; min-height:60px}
+  @media(max-width:620px){.editrow{grid-template-columns:1fr; gap:4px} .info{grid-template-columns:1fr}}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:12px 18px; border-radius:10px; z-index:99; box-shadow:0 8px 30px rgba(0,0,0,.5); display:none}
+  .toast.show{display:block}
+  .hint{color:var(--mut); font-size:12.5px; margin-top:8px}
+  code{background:var(--panel-2); padding:2px 6px; border-radius:5px; font-size:12.5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="brand"><span class="dot"></span> Blu-ray Collection</div>
+    <input id="search" class="field" placeholder="Search title, director, format…">
+    <select id="sort" class="field">
+      <option value="title">Sort: Title A–Z</option>
+      <option value="year">Sort: Year (newest)</option>
+      <option value="yearOld">Sort: Year (oldest)</option>
+      <option value="rating">Sort: Rating</option>
+      <option value="director">Sort: Director</option>
+    </select>
+    <div class="grow"></div>
+    <button class="btn" id="settingsBtn" title="Set up online lookup">⚙ Setup</button>
+    <button class="btn" id="exportBtn">Export</button>
+    <button class="btn" id="importBtn">Import</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+  <div class="addrow">
+    <input id="addTitle" class="field" placeholder="Add a film — just type the title and press Enter…">
+    <button class="btn primary" id="addBtn">+ Add film</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <div class="meta" id="count"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">No films match. Try clearing the search or filters.</div>
+</main>
+
+<!-- Detail / edit modal -->
+<div class="overlay" id="overlay">
+  <div class="modal modal-wrap">
+    <span class="x" id="closeBtn">&times;</span>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Seed cinematography database (built-in; the "shot on" data) ---------- */
+const SEED = [
+  ["The Forbidden Kingdom",2008,"Rob Minkoff","Action, Adventure, Fantasy",104,6.5,
+   "Jackie Chan, Jet Li, Michael Angarano",
+   "A kung-fu-obsessed American teen is swept into ancient China and trained by martial-arts masters to free an imprisoned king.",
+   "Film","Arricam LT/ST (35mm)","Panavision Primo spherical","Kodak Vision2 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/5/51/ForbiddenKingdomPoster.jpg"],
+  ["Spider-Man",2002,"Sam Raimi","Action, Adventure, Sci-Fi",121,7.4,
+   "Tobey Maguire, Willem Dafoe, Kirsten Dunst",
+   "Bitten by a genetically altered spider, Peter Parker gains powers and must stop the Green Goblin.",
+   "Film","Panavision Panaflex Millennium/Platinum (Super 35)","Panavision Primo","Kodak Vision 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/6/6c/Spider-Man_%282002_film%29_poster.jpg"],
+  ["Valkyrie",2008,"Bryan Singer","History, Thriller, War",121,7.1,
+   "Tom Cruise, Kenneth Branagh, Bill Nighy",
+   "German officers led by Colonel Stauffenberg plot to assassinate Hitler in Operation Valkyrie.",
+   "Film","Panavision Panaflex (Super 35)","Panavision Primo","Kodak Vision2 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/b/b8/Valkyrie_poster.jpg"],
+  ["Spider-Man 2",2004,"Sam Raimi","Action, Adventure, Sci-Fi",127,7.5,
+   "Tobey Maguire, Alfred Molina, Kirsten Dunst",
+   "Peter Parker struggles to balance ordinary life and heroism as Doctor Octopus threatens the city.",
+   "Film","Panavision Panaflex (Super 35)","Panavision Primo","Kodak Vision 35mm","2K DI (IMAX re-release)","https://upload.wikimedia.org/wikipedia/en/4/4e/Spider-Man_2_USA_poster.jpg"],
+  ["Star Wars: Episode I — The Phantom Menace",1999,"George Lucas","Action, Adventure, Fantasy",136,6.5,
+   "Liam Neeson, Ewan McGregor, Natalie Portman",
+   "Two Jedi and a young Anakin Skywalker confront the Trade Federation's blockade of Naboo.",
+   "Film","Panavision Panaflex Millennium (35mm) + early digital tests","Panavision Primo anamorphic","Kodak 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/4/40/Star_Wars_Phantom_Menace_poster.jpg"],
+  ["Star Wars: Episode II — Attack of the Clones",2002,"George Lucas","Action, Adventure, Fantasy",142,6.6,
+   "Hayden Christensen, Ewan McGregor, Natalie Portman",
+   "Anakin and Obi-Wan investigate a clone army as a separatist movement threatens the Republic. The first major studio film shot entirely on digital.",
+   "Digital","Sony HDW-F900 CineAlta (digital HD)","Panavision/Zeiss DigiPrime","Digital — 1080p/24 HD","HD capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/3/32/Star_Wars_-_Episode_II_Attack_of_the_Clones_%28movie_poster%29.jpg"],
+  ["Star Wars: Episode III — Revenge of the Sith",2005,"George Lucas","Action, Adventure, Fantasy",140,7.6,
+   "Hayden Christensen, Ewan McGregor, Ian McDiarmid",
+   "Anakin Skywalker falls to the dark side as the Republic becomes the Empire.",
+   "Digital","Sony HDC-F950 CineAlta (digital HD)","Panavision DigiPrime","Digital — 1080p HD","HD capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/9/93/Star_Wars_Episode_III_Revenge_of_the_Sith_poster.jpg"],
+  ["Rogue One: A Star Wars Story",2016,"Gareth Edwards","Action, Adventure, Sci-Fi",133,7.8,
+   "Felicity Jones, Diego Luna, Ben Mendelsohn",
+   "A band of rebels steals the plans to the Death Star in the lead-up to A New Hope.",
+   "Digital","Arri Alexa 65 (large format) + Alexa XT","Panavision Ultra Panavision 70 / Sphero","Digital — Alexa 65 6.5K","6.5K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/d/d4/Rogue_One%2C_A_Star_Wars_Story_poster.png"],
+  ["Riddick",2013,"David Twohy","Action, Sci-Fi, Thriller",119,6.4,
+   "Vin Diesel, Karl Urban, Katee Sackhoff",
+   "Left for dead on a sun-scorched planet, Riddick must survive mercenaries and predators.",
+   "Digital","Red Epic","Spherical primes","Digital — 5K","5K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/6/69/Riddick_poster.jpg"],
+  ["Man of Steel",2013,"Zack Snyder","Action, Adventure, Sci-Fi",143,7.1,
+   "Henry Cavill, Amy Adams, Michael Shannon",
+   "Clark Kent discovers his Kryptonian origins and becomes Superman to stop General Zod.",
+   "Film","35mm Panavision Panaflex + Arri Alexa (mixed)","Panavision Primo","Kodak Vision3 35mm + digital","Super 35 + digital, 2K DI","https://upload.wikimedia.org/wikipedia/en/5/50/Man_of_Steel_%28film%29_poster.jpg"],
+  ["Public Enemies",2009,"Michael Mann","Biography, Crime, Drama",140,7.0,
+   "Johnny Depp, Christian Bale, Marion Cotillard",
+   "The FBI hunts Depression-era bank robber John Dillinger.",
+   "Digital","Sony CineAlta F23, F900R & Genesis (digital HD)","Panavision","Digital — 1080p HD","HD capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/4/46/PEPOSTERsm.jpg"],
+  ["Dawn of the Planet of the Apes",2014,"Matt Reeves","Action, Adventure, Drama",130,7.6,
+   "Andy Serkis, Jason Clarke, Gary Oldman",
+   "A fragile peace between apes and human survivors collapses into war.",
+   "Digital","Arri Alexa XT (native 3D)","Panavision anamorphic","Digital — ~2.8K","2.8K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/7/77/Dawn_of_the_Planet_of_the_Apes.jpg"],
+  ["Planet of the Apes",2001,"Tim Burton","Action, Adventure, Sci-Fi",119,5.7,
+   "Mark Wahlberg, Tim Roth, Helena Bonham Carter",
+   "A stranded astronaut lands on a world where intelligent apes rule over humans.",
+   "Film","Panavision Panaflex (35mm)","Panavision Primo","Kodak 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/2/2c/PotA-2001poster.jpg"],
+  ["Prometheus",2012,"Ridley Scott","Adventure, Mystery, Sci-Fi",124,7.0,
+   "Noomi Rapace, Michael Fassbender, Charlize Theron",
+   "Explorers seeking humanity's origins find terror on a distant moon.",
+   "Digital","Red Epic (native 3D rigs)","Zeiss Master Prime / Angenieux","Digital — 5K, stereoscopic 3D","5K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/a/a3/Prometheusposterfixed.jpg"],
+  ["Spider-Man: Homecoming",2017,"Jon Watts","Action, Adventure, Sci-Fi",133,7.4,
+   "Tom Holland, Michael Keaton, Robert Downey Jr.",
+   "Teenage Peter Parker juggles high school and heroics while facing the Vulture.",
+   "Digital","Arri Alexa 65 + Alexa XT/Mini","Panavision","Digital — large format","6.5K/2.8K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/f/f9/Spider-Man_Homecoming_poster.jpg"],
+  ["Thor",2011,"Kenneth Branagh","Action, Adventure, Fantasy",115,7.0,
+   "Chris Hemsworth, Tom Hiddleston, Natalie Portman",
+   "The arrogant thunder god is cast out of Asgard and must prove himself on Earth.",
+   "Film","Panavision Panaflex (35mm), post-converted 3D","Panavision Primo anamorphic","Kodak 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/9/95/Thor_%28film%29_poster.jpg"],
+  ["Iron Man 3",2013,"Shane Black","Action, Adventure, Sci-Fi",130,7.2,
+   "Robert Downey Jr., Guy Pearce, Gwyneth Paltrow",
+   "A shaken Tony Stark faces the Mandarin while rebuilding himself and his armor.",
+   "Digital","Arri Alexa","Spherical primes","Digital — ~2.8K","2.8K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/1/19/Iron_Man_3_poster.jpg"],
+  ["Iron Man",2008,"Jon Favreau","Action, Adventure, Sci-Fi",126,7.9,
+   "Robert Downey Jr., Jeff Bridges, Gwyneth Paltrow",
+   "Billionaire Tony Stark builds a powered suit of armor and becomes Iron Man.",
+   "Film","Panavision Panaflex (35mm) + some HD","Panavision Primo","Kodak 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/0/02/Iron_Man_%282008_film%29_poster.jpg"],
+  ["The Dark Knight Rises",2012,"Christopher Nolan","Action, Drama, Thriller",164,8.4,
+   "Christian Bale, Tom Hardy, Anne Hathaway",
+   "Eight years after the Joker, Batman returns to face Bane, who threatens to destroy Gotham.",
+   "Film + IMAX","Panavision (35mm) + IMAX 65mm (15/70)","Panavision anamorphic + IMAX","35mm + IMAX 65mm film","Hybrid 2K/4K DI; ~72 min in IMAX","https://upload.wikimedia.org/wikipedia/en/8/83/Dark_knight_rises_poster.jpg"],
+  ["The Dark Knight",2008,"Christopher Nolan","Action, Crime, Drama",152,9.0,
+   "Christian Bale, Heath Ledger, Aaron Eckhart",
+   "Batman, Gordon and Harvey Dent take on the Joker's reign of chaos in Gotham. The first major feature to use IMAX cameras for sequences.",
+   "Film + IMAX","Panavision (35mm) + IMAX 65mm (15/70)","Panavision anamorphic + IMAX","35mm + IMAX 65mm film","Photochemical / 2K DI","https://upload.wikimedia.org/wikipedia/en/1/1c/The_Dark_Knight_%282008_film%29.jpg"],
+  ["Batman Begins",2005,"Christopher Nolan","Action, Crime, Drama",140,8.2,
+   "Christian Bale, Michael Caine, Liam Neeson",
+   "Bruce Wayne trains abroad and returns to Gotham to become Batman.",
+   "Film","Panavision Panaflex (Super 35, anamorphic)","Panavision Primo anamorphic","Kodak 35mm","2K digital intermediate","https://upload.wikimedia.org/wikipedia/en/a/af/Batman_Begins_Poster.jpg"],
+  ["Inception",2010,"Christopher Nolan","Action, Adventure, Sci-Fi",148,8.8,
+   "Leonardo DiCaprio, Joseph Gordon-Levitt, Elliot Page",
+   "A thief who steals secrets through dream-sharing is offered a chance at redemption by planting an idea.",
+   "Film + IMAX","Panavision 35mm + 65mm + IMAX 15/70 + VistaVision","Panavision Primo / IMAX","35mm, 65mm & IMAX film","Hybrid 2K/4K DI","https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg"],
+  ["Divergent",2014,"Neil Burger","Action, Adventure, Mystery",139,6.6,
+   "Shailene Woodley, Theo James, Kate Winslet",
+   "In a faction-divided future, a young woman discovers she is Divergent and a threat to the system.",
+   "Digital","Arri Alexa","Spherical primes","Digital — ~2.8K","2.8K capture, 2K DI","https://upload.wikimedia.org/wikipedia/en/7/7e/Divergent_film_poster.jpg"],
+  ["The Hobbit: An Unexpected Journey",2012,"Peter Jackson","Adventure, Family, Fantasy",169,7.8,
+   "Martin Freeman, Ian McKellen, Richard Armitage",
+   "Bilbo Baggins joins thirteen dwarves on a quest to reclaim the Lonely Mountain from Smaug.",
+   "Digital","Red Epic (48fps HFR, native 3D)","Red / Zeiss Ultra Prime","Digital — 5K, 48fps HFR","5K capture, 2K/4K DI","https://upload.wikimedia.org/wikipedia/en/b/b3/The_Hobbit-_An_Unexpected_Journey.jpeg"],
+  ["The Hobbit: The Desolation of Smaug",2013,"Peter Jackson","Adventure, Family, Fantasy",161,7.8,
+   "Martin Freeman, Ian McKellen, Benedict Cumberbatch",
+   "The company presses on toward the Lonely Mountain and finally confronts the dragon Smaug.",
+   "Digital","Red Epic Dragon (48fps HFR, native 3D)","Red / Zeiss Ultra Prime","Digital — 6K, 48fps HFR","6K capture, 2K/4K DI","https://upload.wikimedia.org/wikipedia/en/4/4f/The_Hobbit_-_The_Desolation_of_Smaug_theatrical_poster.jpg"],
+  ["Up",2009,"Pete Docter","Animation, Adventure, Comedy",96,8.3,
+   "Ed Asner, Christopher Plummer, Jordan Nagai",
+   "A widowed balloon-salesman flies his house to South America and gains an unexpected stowaway.",
+   "Animation","CG animation — no physical camera (Pixar RenderMan)","Virtual anamorphic lensing","Fully digital CG animation","2K DI (Disney Digital 3D)","https://upload.wikimedia.org/wikipedia/en/0/05/Up_%282009_film%29.jpg"],
+];
+
+function seedToFilm(r, i){
+  return {
+    id:"seed-"+i, title:r[0], year:r[1], director:r[2], genres:r[3],
+    runtime:r[4], rating:r[5], cast:r[6], plot:r[7],
+    format:r[8], cameras:r[9], lenses:r[10], filmstock:r[11], resolution:r[12],
+    poster:r[13]||""
+  };
+}
+
+/* ---------- State ---------- */
+const LS_FILMS="bluray.films.v1", LS_KEY="bluray.tmdbkey";
+let films = load();
+let filter = {q:"", format:"all", sort:"title"};
+
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_FILMS);
+    if(raw){ const a = JSON.parse(raw); if(Array.isArray(a) && a.length) return a; }
+  }catch(e){}
+  return SEED.map(seedToFilm);
+}
+function save(){ localStorage.setItem(LS_FILMS, JSON.stringify(films)); }
+function tmdbKey(){ return localStorage.getItem(LS_KEY) || ""; }
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm=s=>(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+function formatClass(f){
+  f=(f||"").toLowerCase();
+  if(f.includes("imax")) return "imax";
+  if(f.includes("anim")) return "anim";
+  if(f.includes("digital")) return "digital";
+  if(f.includes("film")) return "film";
+  return "digital";
+}
+const FORMAT_COLORS={film:"var(--film)",digital:"var(--digital)",imax:"var(--imax)",anim:"var(--anim)"};
+const FORMAT_LABELS={film:"FILM",digital:"DIGITAL",imax:"IMAX",anim:"ANIMATED"};
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2600); }
+
+/* ---------- Filters / chips ---------- */
+const FILTERS=[
+  {k:"all",label:"All"},
+  {k:"film",label:"Shot on Film"},
+  {k:"digital",label:"Shot on Digital"},
+  {k:"imax",label:"IMAX"},
+  {k:"anim",label:"Animated"},
+];
+function renderChips(){
+  $("#chips").innerHTML = FILTERS.map(f=>{
+    const dot = f.k!=="all" ? `<span class="c" style="background:${FORMAT_COLORS[f.k]}"></span>` : "";
+    return `<div class="chip ${filter.format===f.k?'active':''}" data-f="${f.k}">${dot}${f.label}</div>`;
+  }).join("");
+  document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{filter.format=c.dataset.f; renderChips(); render();});
+}
+
+/* ---------- Grid ---------- */
+function visibleFilms(){
+  let list = films.slice();
+  if(filter.format!=="all") list=list.filter(f=>formatClass(f.format)===filter.format);
+  if(filter.q){
+    const q=filter.q.toLowerCase();
+    list=list.filter(f=>[f.title,f.director,f.format,f.cameras,f.genres,f.cast].join(" ").toLowerCase().includes(q));
+  }
+  const s=filter.sort;
+  list.sort((a,b)=>{
+    if(s==="year") return (b.year||0)-(a.year||0);
+    if(s==="yearOld") return (a.year||0)-(b.year||0);
+    if(s==="rating") return (b.rating||0)-(a.rating||0);
+    if(s==="director") return (a.director||"").localeCompare(b.director||"");
+    return a.title.localeCompare(b.title);
+  });
+  return list;
+}
+function posterHTML(f, cls){
+  if(f.poster) return `<img src="${esc(f.poster)}" alt="${esc(f.title)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'${esc(f.title).replace(/'/g,"")}'}))">`;
+  return `<div class="ph">${esc(f.title)}</div>`;
+}
+function render(){
+  const list=visibleFilms();
+  $("#count").textContent = `${list.length} of ${films.length} film${films.length!==1?"s":""}`;
+  $("#empty").style.display = list.length? "none":"block";
+  $("#grid").innerHTML = list.map(f=>{
+    const fc=formatClass(f.format);
+    return `<div class="card" data-id="${f.id}">
+      <div class="poster">
+        <span class="badge" style="background:${FORMAT_COLORS[fc]}">${FORMAT_LABELS[fc]}</span>
+        ${posterHTML(f)}
+      </div>
+      <div class="body">
+        <div class="t">${esc(f.title)}</div>
+        <div class="sub">${f.year||"—"} · ${esc(f.director||"Unknown")}</div>
+        ${f.rating?`<div class="rt">★ ${f.rating}</div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(c.dataset.id));
+}
+
+/* ---------- Detail modal ---------- */
+function specBlock(k,v){
+  const unknown = !v || /^unknown/i.test(v);
+  return `<div class="spec"><div class="k">${k}</div><div class="v ${unknown?'unknown':''}">${unknown?'Unknown — click Edit to add':esc(v)}</div></div>`;
+}
+function openDetail(id){
+  const f=films.find(x=>x.id===id); if(!f) return;
+  const fc=formatClass(f.format);
+  $("#modalBody").innerHTML=`
+    <div class="mhead">
+      <div class="mp">${posterHTML(f)}</div>
+      <div>
+        <div class="mtitle">${esc(f.title)}</div>
+        <div class="mline">${f.year||"—"} · ${esc(f.director||"Unknown director")} · ${f.runtime?f.runtime+" min":""}</div>
+        <div class="pills">
+          ${f.rating?`<span class="pill rate">★ ${f.rating} / 10</span>`:""}
+          <span class="pill" style="border-color:${FORMAT_COLORS[fc]};color:${FORMAT_COLORS[fc]}">${FORMAT_LABELS[fc]}</span>
+          ${(f.genres||"").split(",").map(g=>g.trim()).filter(Boolean).map(g=>`<span class="pill">${esc(g)}</span>`).join("")}
+        </div>
+      </div>
+    </div>
+    ${f.plot?`<div class="section"><p class="plot" style="padding:0;margin:0">${esc(f.plot)}</p></div>`:""}
+    <div class="section" style="padding-top:4px">
+      <div class="info">
+        <div class="row"><span class="k">Director</span><span>${esc(f.director||"—")}</span></div>
+        <div class="row"><span class="k">Year</span><span>${f.year||"—"}</span></div>
+        <div class="row"><span class="k">Runtime</span><span>${f.runtime?f.runtime+" min":"—"}</span></div>
+        <div class="row"><span class="k">Genre</span><span>${esc(f.genres||"—")}</span></div>
+        <div class="row" style="grid-column:1/-1"><span class="k">Cast</span><span>${esc(f.cast||"—")}</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <h3>◎ Shot On — Cinematography</h3>
+      <div class="specs">
+        ${specBlock("Cameras",f.cameras)}
+        ${specBlock("Lenses",f.lenses)}
+        ${specBlock("Format / Film stock",f.filmstock)}
+        ${specBlock("Resolution / Finish",f.resolution)}
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" id="editBtn">✎ Edit</button>
+      <div class="grow"></div>
+      <button class="btn ghost" id="deleteBtn" style="color:#e0738a;border-color:#5a2f3a">Delete</button>
+    </div>`;
+  $("#editBtn").onclick=()=>openEdit(id);
+  $("#deleteBtn").onclick=()=>{
+    if(confirm(`Remove "${f.title}" from your collection?`)){
+      films=films.filter(x=>x.id!==id); save(); closeModal(); render(); toast("Removed");
+    }
+  };
+  openModal();
+}
+
+/* ---------- Edit form ---------- */
+function field(id,label,val,ta){
+  const input = ta
+    ? `<textarea class="field" id="ed-${id}">${esc(val||"")}</textarea>`
+    : `<input class="field" id="ed-${id}" value="${esc(val||"")}">`;
+  return `<div class="editrow"><label>${label}</label>${input}</div>`;
+}
+function openEdit(id){
+  const f = films.find(x=>x.id===id) || {id:id};
+  const isNew = !films.find(x=>x.id===id);
+  $("#modalBody").innerHTML=`
+    <div class="section">
+      <h3>${isNew?"Add film":"Edit film"}</h3>
+      ${field("title","Title",f.title)}
+      ${field("year","Year",f.year)}
+      ${field("director","Director",f.director)}
+      ${field("genres","Genre",f.genres)}
+      ${field("runtime","Runtime (min)",f.runtime)}
+      ${field("rating","Rating /10",f.rating)}
+      ${field("cast","Cast",f.cast)}
+      ${field("poster","Poster URL",f.poster)}
+      ${field("plot","Synopsis",f.plot,true)}
+    </div>
+    <div class="section" style="padding-top:0">
+      <h3>◎ Shot On</h3>
+      <div class="editrow"><label>Format</label>
+        <select class="field" id="ed-format">
+          ${["Film","Digital","Film + IMAX","Digital + IMAX","Animation"].map(o=>`<option ${f.format===o?"selected":""}>${o}</option>`).join("")}
+        </select>
+      </div>
+      ${field("cameras","Cameras",f.cameras)}
+      ${field("lenses","Lenses",f.lenses)}
+      ${field("filmstock","Format / Film stock",f.filmstock)}
+      ${field("resolution","Resolution / Finish",f.resolution)}
+    </div>
+    <div class="mfoot">
+      <button class="btn primary" id="saveBtn">Save</button>
+      <button class="btn" id="cancelBtn">Cancel</button>
+    </div>`;
+  $("#saveBtn").onclick=()=>{
+    const get=k=>{const el=$("#ed-"+k);return el?el.value.trim():"";};
+    const obj={
+      id:f.id||("usr-"+Date.now()),
+      title:get("title")||"Untitled", year:parseInt(get("year"))||"", director:get("director"),
+      genres:get("genres"), runtime:parseInt(get("runtime"))||"", rating:parseFloat(get("rating"))||"",
+      cast:get("cast"), poster:get("poster"), plot:get("plot"),
+      format:get("format"), cameras:get("cameras"), lenses:get("lenses"),
+      filmstock:get("filmstock"), resolution:get("resolution"),
+    };
+    const idx=films.findIndex(x=>x.id===obj.id);
+    if(idx>=0) films[idx]=obj; else films.push(obj);
+    save(); render(); openDetail(obj.id); toast("Saved");
+  };
+  $("#cancelBtn").onclick=()=> isNew? closeModal() : openDetail(id);
+  openModal();
+}
+
+/* ---------- Add by title (local DB + optional online fetch) ---------- */
+async function addByTitle(title){
+  title=title.trim(); if(!title) return;
+  // 1) already in collection?
+  const existing=films.find(f=>norm(f.title)===norm(title));
+  if(existing){ toast("Already in your collection"); openDetail(existing.id); return; }
+  // 2) known in built-in seed DB (basics + shot-on)?
+  const seedRow=SEED.find(r=>norm(r[0])===norm(title) || norm(r[0]).includes(norm(title)) && norm(title).length>5);
+  if(seedRow){
+    const f=seedToFilm(seedRow, "x"); f.id="usr-"+Date.now();
+    films.push(f); save(); render(); $("#addTitle").value=""; openDetail(f.id); toast("Added from built-in database");
+    return;
+  }
+  // 3) online lookup for basics (shot-on left blank to fill in)
+  const key=tmdbKey();
+  if(key){
+    toast("Looking up online…");
+    try{
+      const f=await fetchTMDB(title,key);
+      films.push(f); save(); render(); $("#addTitle").value=""; openDetail(f.id);
+      toast("Pulled basics online — add the Shot On details");
+      return;
+    }catch(e){ toast("Online lookup failed: "+e.message); }
+  }
+  // 4) fallback: blank card to edit
+  const f={id:"usr-"+Date.now(),title:title,format:"Digital",cameras:"Unknown",lenses:"Unknown",filmstock:"Unknown",resolution:"Unknown"};
+  films.push(f); save(); render(); $("#addTitle").value="";
+  openEdit(f.id);
+  if(!key) toast("Added blank — click ⚙ Setup to enable online lookup");
+}
+async function fetchTMDB(title,key){
+  const s=await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${encodeURIComponent(title)}`);
+  if(!s.ok) throw new Error("HTTP "+s.status);
+  const sj=await s.json();
+  if(!sj.results || !sj.results.length) throw new Error("no match");
+  const id=sj.results[0].id;
+  const d=await (await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${key}&append_to_response=credits`)).json();
+  const dir=(d.credits&&d.credits.crew||[]).find(c=>c.job==="Director");
+  const cast=(d.credits&&d.credits.cast||[]).slice(0,4).map(c=>c.name).join(", ");
+  return {
+    id:"usr-"+Date.now(),
+    title:d.title||title,
+    year:d.release_date?parseInt(d.release_date.slice(0,4)):"",
+    director:dir?dir.name:"",
+    genres:(d.genres||[]).map(g=>g.name).join(", "),
+    runtime:d.runtime||"",
+    rating:d.vote_average?Math.round(d.vote_average*10)/10:"",
+    cast:cast,
+    plot:d.overview||"",
+    poster:d.poster_path?`https://image.tmdb.org/t/p/w500${d.poster_path}`:"",
+    format:"Digital",
+    cameras:"Unknown — no online source for this; add manually",
+    lenses:"Unknown", filmstock:"Unknown", resolution:"Unknown"
+  };
+}
+
+/* ---------- Settings (TMDB key) ---------- */
+function openSettings(){
+  $("#modalBody").innerHTML=`
+    <div class="section">
+      <h3>⚙ Online Lookup Setup</h3>
+      <p class="plot" style="padding:0">When you add a new title, the app can pull <b>IMDb-style basics</b>
+      (year, director, cast, genre, runtime, synopsis, poster, rating) automatically from
+      <a href="https://www.themoviedb.org" target="_blank">The Movie Database</a>.</p>
+      <p class="hint">The four <b>Shot On</b> fields (cameras, lenses, format, resolution) have no free
+      public API anywhere, so those stay manual — your 26 starter films already have them filled in from a built-in database.</p>
+      <ol class="hint" style="line-height:1.8">
+        <li>Make a free account at <a href="https://www.themoviedb.org/signup" target="_blank">themoviedb.org/signup</a></li>
+        <li>Go to Settings → API → request an API key (instant, free)</li>
+        <li>Paste the <b>API Read key (v3 auth)</b> below</li>
+      </ol>
+      ${field("tmdb","API key",tmdbKey())}
+      <p class="hint">Stored only in this browser. Leave blank to keep everything offline/manual.</p>
+    </div>
+    <div class="mfoot">
+      <button class="btn primary" id="saveKey">Save</button>
+      <button class="btn" id="closeSettings">Close</button>
+      <div class="grow"></div>
+      <button class="btn ghost" id="resetSeed" style="color:#e0738a;border-color:#5a2f3a">Reset to 26 starter films</button>
+    </div>`;
+  $("#saveKey").onclick=()=>{localStorage.setItem(LS_KEY,$("#ed-tmdb").value.trim()); closeModal(); toast("Saved");};
+  $("#closeSettings").onclick=closeModal;
+  $("#resetSeed").onclick=()=>{ if(confirm("Replace your collection with the original 26 starter films? Your additions/edits will be lost.")){ films=SEED.map(seedToFilm); save(); render(); closeModal(); toast("Reset to starter collection"); } };
+  openModal();
+}
+
+/* ---------- Modal plumbing ---------- */
+function openModal(){ $("#overlay").classList.add("open"); }
+function closeModal(){ $("#overlay").classList.remove("open"); }
+$("#closeBtn").onclick=closeModal;
+$("#overlay").onclick=e=>{ if(e.target.id==="overlay") closeModal(); };
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+
+/* ---------- Export / Import ---------- */
+$("#exportBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify(films,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="bluray-collection.json"; a.click(); toast("Exported JSON");
+};
+$("#importBtn").onclick=()=>$("#importFile").click();
+$("#importFile").onchange=e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const a=JSON.parse(r.result); if(Array.isArray(a)){ films=a; save(); render(); toast("Imported "+a.length+" films"); } else toast("Invalid file"); }catch(err){ toast("Could not read file"); } };
+  r.readAsText(file);
+};
+
+/* ---------- Wire up ---------- */
+$("#search").oninput=e=>{filter.q=e.target.value; render();};
+$("#sort").onchange=e=>{filter.sort=e.target.value; render();};
+$("#addBtn").onclick=()=>addByTitle($("#addTitle").value);
+$("#addTitle").onkeydown=e=>{ if(e.key==="Enter") addByTitle($("#addTitle").value); };
+$("#settingsBtn").onclick=openSettings;
+
+renderChips();
+render();
+</script>
+</body>
+</html>
