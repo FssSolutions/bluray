@@ -53,9 +53,23 @@
   }
   .chip.active{color:#fff; border-color:var(--acc); background:var(--panel-2)}
   .chip .c{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .topbar{margin-bottom:0}
+  #controls{overflow:hidden; transition:max-height .25s ease, opacity .2s ease, margin .2s ease; max-height:600px; opacity:1}
+  header.collapsed #controls{max-height:0; opacity:0; margin:0; pointer-events:none}
   main{max-width:1280px; margin:0 auto; padding:22px 20px 80px}
   .meta{color:var(--mut); font-size:13px; margin:4px 0 16px}
   .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:18px}
+  /* Mobile: 2 columns portrait, 3 columns landscape */
+  @media (max-width:760px) and (orientation:portrait){
+    .grid{grid-template-columns:repeat(2,1fr); gap:12px}
+    .card .t{font-size:13px} .card .sub{font-size:11.5px}
+    main{padding:16px 14px 70px}
+  }
+  @media (max-width:1024px) and (orientation:landscape) and (max-height:560px){
+    .grid{grid-template-columns:repeat(3,1fr); gap:12px}
+    .card .t{font-size:13px} .card .sub{font-size:11.5px}
+    main{padding:16px 14px 70px}
+  }
   .card{
     background:var(--panel); border:1px solid var(--line); border-radius:14px;
     overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s;
@@ -129,27 +143,33 @@
 <body>
 
 <header>
-  <div class="bar">
+  <div class="bar topbar">
     <div class="brand"><span class="dot"></span> Blu-ray Collection</div>
-    <input id="search" class="field" placeholder="Search title, director, format…">
-    <select id="sort" class="field">
-      <option value="title">Sort: Title A–Z</option>
-      <option value="year">Sort: Year (newest)</option>
-      <option value="yearOld">Sort: Year (oldest)</option>
-      <option value="rating">Sort: Rating</option>
-      <option value="director">Sort: Director</option>
-    </select>
     <div class="grow"></div>
-    <button class="btn" id="settingsBtn" title="Set up online lookup">⚙ Setup</button>
-    <button class="btn" id="exportBtn">Export</button>
-    <button class="btn" id="importBtn">Import</button>
-    <input type="file" id="importFile" accept="application/json" hidden>
+    <button class="btn" id="menuToggle" aria-expanded="true">☰ Hide menu</button>
   </div>
-  <div class="addrow">
-    <input id="addTitle" class="field" placeholder="Add a film — just type the title and press Enter…">
-    <button class="btn primary" id="addBtn">+ Add film</button>
+  <div id="controls">
+    <div class="bar">
+      <input id="search" class="field" placeholder="Search title, director, format…">
+      <select id="sort" class="field">
+        <option value="title">Sort: Title A–Z</option>
+        <option value="year">Sort: Year (newest)</option>
+        <option value="yearOld">Sort: Year (oldest)</option>
+        <option value="rating">Sort: Rating</option>
+        <option value="director">Sort: Director</option>
+      </select>
+      <div class="grow"></div>
+      <button class="btn" id="settingsBtn" title="Set up online lookup">⚙ Setup</button>
+      <button class="btn" id="exportBtn">Export</button>
+      <button class="btn" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+    <div class="addrow">
+      <input id="addTitle" class="field" placeholder="Add a film — just type the title and press Enter…">
+      <button class="btn primary" id="addBtn">+ Add film</button>
+    </div>
+    <div class="chips" id="chips"></div>
   </div>
-  <div class="chips" id="chips"></div>
 </header>
 
 <main>
@@ -601,6 +621,17 @@ $("#sort").onchange=e=>{filter.sort=e.target.value; render();};
 $("#addBtn").onclick=()=>addByTitle($("#addTitle").value);
 $("#addTitle").onkeydown=e=>{ if(e.key==="Enter") addByTitle($("#addTitle").value); };
 $("#settingsBtn").onclick=openSettings;
+
+/* Collapsible menu (state remembered per browser) */
+const headerEl=document.querySelector("header"), menuBtn=$("#menuToggle");
+function setMenu(collapsed){
+  headerEl.classList.toggle("collapsed",collapsed);
+  menuBtn.textContent = collapsed ? "☰ Show menu" : "☰ Hide menu";
+  menuBtn.setAttribute("aria-expanded", String(!collapsed));
+  localStorage.setItem("bluray.menuHidden", collapsed?"1":"0");
+}
+menuBtn.onclick=()=>setMenu(!headerEl.classList.contains("collapsed"));
+setMenu(localStorage.getItem("bluray.menuHidden")==="1");
 
 renderChips();
 render();
